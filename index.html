@@ -22,6 +22,7 @@
       --down-glow: rgba(244, 63, 94, 0.22);
       --accent: #4f46e5;
       --accent-soft: #eef2ff;
+      --danger-soft: #ffe4e6;
       --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06);
       --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.09);
       --radius: 20px;
@@ -154,6 +155,16 @@
 
     .btn-ghost:hover {
       background: var(--surface-2);
+    }
+
+    .btn-danger {
+      background: var(--danger-soft);
+      color: var(--down-text);
+      border: 1px solid #fecdd3;
+    }
+
+    .btn-danger:hover {
+      background: #fecdd3;
     }
 
     /* Summary Strip */
@@ -318,12 +329,17 @@
 
     /* Audit Table */
     .audit-card {
+      display: none;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 24px;
       padding: 20px;
       box-shadow: var(--shadow-md);
       margin-top: 28px;
+    }
+
+    .audit-card.visible {
+      display: block;
     }
 
     .audit-header {
@@ -343,6 +359,12 @@
     .audit-header p {
       font-size: 0.82rem;
       color: var(--muted);
+    }
+
+    .audit-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .table-wrap {
@@ -405,7 +427,7 @@
       font-weight: 700;
     }
 
-    /* Login Modal */
+    /* Login & Confirm Modals */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -442,6 +464,7 @@
       font-size: 0.84rem;
       color: var(--muted);
       margin-bottom: 16px;
+      line-height: 1.45;
     }
 
     .role-switch {
@@ -528,7 +551,7 @@
         <div class="brand-badge">LP</div>
         <div>
           <h1>Society Lift Status</h1>
-          <p id="modeIndicator">View-Only Mode • Live Sync Ready</p>
+          <p id="modeIndicator">View-Only Mode • Firebase Realtime Sync</p>
         </div>
       </div>
 
@@ -560,13 +583,17 @@
 
     <main id="wingsContainer"></main>
 
-    <section class="audit-card">
+    <!-- Visible only to Technician and Admin -->
+    <section id="auditSection" class="audit-card">
       <div class="audit-header">
         <div>
           <h2>Lift Status Audit Trail</h2>
           <p>Duration from previous status updates only when a lift status changes.</p>
         </div>
-        <button id="exportCsvBtn" class="btn btn-ghost" type="button">Export CSV</button>
+        <div class="audit-actions">
+          <button id="exportCsvBtn" class="btn btn-ghost" type="button" style="display: none;">Export CSV</button>
+          <button id="deleteHistoryBtn" class="btn btn-danger" type="button" style="display: none;">Delete History</button>
+        </div>
       </div>
 
       <div class="table-wrap">
@@ -620,18 +647,30 @@
     </div>
   </div>
 
+  <!-- Delete History Confirmation Modal -->
+  <div id="deleteModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+    <div class="modal">
+      <h3 id="deleteModalTitle">Delete Audit History?</h3>
+      <p>
+        This will permanently delete all audit trail records from the Firebase database and clear the history view. Current lift statuses will remain unchanged.
+      </p>
+      <div class="modal-actions">
+        <button type="button" id="cancelDeleteBtn" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete History</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
-  <!-- Firebase Compat SDKs for easy static hosting -->
+  <!-- Firebase Compat SDKs for static hosting -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script>
-    // 1. Paste your Firebase Web App config here to enable live multi-user sync & cloud audit log.
-    // If left as placeholders, the app runs locally in the browser so you can preview immediately.
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyBMdhQmDKnpMV8H8OTahGKDsrDeuxYW",
+    const firebaseConfig = {
+      apiKey: "AIzaSyBMdhQmDKnpMV8H8OTahGKDsrDeuxYW-i4",
       authDomain: "society-lift-status.firebaseapp.com",
-      databaseURL: "https://console.firebase.google.com/u/1/project/society-lift-status/database",
+      databaseURL: "https://society-lift-status-default-rtdb.asia-southeast1.firebasedatabase.app/",
       projectId: "society-lift-status",
       storageBucket: "society-lift-status.firebasestorage.app",
       messagingSenderId: "279846088741",
@@ -706,8 +745,7 @@
             wing,
             liftName,
             status: "WORKING",
-            changedAt: nowMs,
-            previousDurationLabel: "Initial state"
+            changedAt: nowMs
           };
         });
       });
@@ -726,11 +764,22 @@
       return state.role === "technician" || state.role === "admin";
     }
 
+    function canViewAudit() {
+      return state.role === "technician" || state.role === "admin";
+    }
+
+    function isAdmin() {
+      return state.role === "admin";
+    }
+
     function renderAuthUI() {
       const rolePill = document.getElementById("rolePill");
       const loginBtn = document.getElementById("loginBtn");
       const logoutBtn = document.getElementById("logoutBtn");
       const modeIndicator = document.getElementById("modeIndicator");
+      const auditSection = document.getElementById("auditSection");
+      const exportCsvBtn = document.getElementById("exportCsvBtn");
+      const deleteHistoryBtn = document.getElementById("deleteHistoryBtn");
 
       rolePill.classList.remove("tech", "admin");
       if (state.role === "technician") {
@@ -748,6 +797,10 @@
         loginBtn.style.display = "inline-block";
         logoutBtn.style.display = "none";
       }
+
+      auditSection.classList.toggle("visible", canViewAudit());
+      exportCsvBtn.style.display = isAdmin() ? "inline-block" : "none";
+      deleteHistoryBtn.style.display = isAdmin() ? "inline-block" : "none";
 
       const syncLabel = state.useFirebase ? "Firebase Realtime Sync" : "Local Preview Mode";
       const permLabel = canToggleLifts() ? "Tap any lift to switch status" : "View-only permissions";
@@ -913,14 +966,33 @@
       showToast(`${liftId} → ${newStatus}`);
     }
 
+    async function deleteAllHistory() {
+      if (!isAdmin()) {
+        showToast("Only Admin can delete audit history.");
+        return;
+      }
+
+      state.auditLog = [];
+      renderLifts();
+      renderAuditTable();
+      persistLocal();
+
+      if (state.useFirebase && state.db) {
+        await state.db.ref("auditLog").remove();
+      }
+
+      closeDeleteModal();
+      showToast("Audit history deleted from database and view.");
+    }
+
     async function ensureAuthHashes() {
       const techHash = await sha256Hex(DEFAULT_PASSCODES.technician);
       const adminHash = await sha256Hex(DEFAULT_PASSCODES.admin);
 
-      if (!state.authHashes.technician.hash) {
+      if (!state.authHashes.technician?.hash) {
         state.authHashes.technician = { masked: "••••", hash: techHash };
       }
-      if (!state.authHashes.admin.hash) {
+      if (!state.authHashes.admin?.hash) {
         state.authHashes.admin = { masked: "••••••••", hash: adminHash };
       }
 
@@ -950,6 +1022,18 @@
       document.getElementById("loginModal").classList.remove("open");
     }
 
+    function openDeleteModal() {
+      if (!isAdmin()) {
+        showToast("Only Admin can delete audit history.");
+        return;
+      }
+      document.getElementById("deleteModal").classList.add("open");
+    }
+
+    function closeDeleteModal() {
+      document.getElementById("deleteModal").classList.remove("open");
+    }
+
     function setSelectedRole(role) {
       selectedLoginRole = role;
       document.getElementById("selectTechBtn").classList.toggle("active", role === "technician");
@@ -974,6 +1058,7 @@
         closeLoginModal();
         renderAuthUI();
         renderLifts();
+        renderAuditTable();
         showToast(`Logged in as ${selectedLoginRole.toUpperCase()}`);
       } else {
         errEl.textContent = "Invalid passcode for selected role.";
@@ -981,6 +1066,10 @@
     }
 
     function exportCsv() {
+      if (!isAdmin()) {
+        showToast("Only Admin can export CSV.");
+        return;
+      }
       if (!state.auditLog.length) {
         showToast("No audit entries to export.");
         return;
@@ -1017,13 +1106,13 @@
       }
 
       const hasRealFirebase =
-        FIREBASE_CONFIG.apiKey &&
-        !FIREBASE_CONFIG.apiKey.startsWith("YOUR_") &&
-        FIREBASE_CONFIG.databaseURL &&
-        !FIREBASE_CONFIG.databaseURL.includes("YOUR_PROJECT");
+        firebaseConfig.apiKey &&
+        !firebaseConfig.apiKey.startsWith("YOUR_") &&
+        firebaseConfig.databaseURL &&
+        !firebaseConfig.databaseURL.includes("YOUR_PROJECT");
 
       if (hasRealFirebase && window.firebase) {
-        firebase.initializeApp(FIREBASE_CONFIG);
+        firebase.initializeApp(firebaseConfig);
         state.db = firebase.database();
         state.useFirebase = true;
 
@@ -1050,9 +1139,11 @@
           const val = snap.val();
           if (val) {
             state.auditLog = Object.values(val).sort((a, b) => b.changedAt - a.changedAt);
-            renderLifts();
-            renderAuditTable();
+          } else {
+            state.auditLog = [];
           }
+          renderLifts();
+          renderAuditTable();
         });
       } else {
         await ensureAuthHashes();
@@ -1063,6 +1154,7 @@
         state.role = "resident";
         renderAuthUI();
         renderLifts();
+        renderAuditTable();
         showToast("Switched to View-Only mode.");
       });
       document.getElementById("cancelLoginBtn").addEventListener("click", closeLoginModal);
@@ -1073,6 +1165,9 @@
         if (e.key === "Enter") validateLogin();
       });
       document.getElementById("exportCsvBtn").addEventListener("click", exportCsv);
+      document.getElementById("deleteHistoryBtn").addEventListener("click", openDeleteModal);
+      document.getElementById("cancelDeleteBtn").addEventListener("click", closeDeleteModal);
+      document.getElementById("confirmDeleteBtn").addEventListener("click", deleteAllHistory);
 
       renderAuthUI();
       renderLifts();
