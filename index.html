@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lift Pulse — Society Lift Status & Audit Log</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --working-bg: #ecfdf5;
+      --working-border: #10b981;
+      --working-text: #047857;
+      --working-glow: rgba(16, 185, 129, 0.22);
+      --down-bg: #fff1f2;
+      --down-border: #f43f5e;
+      --down-text: #be123c;
+      --down-glow: rgba(244, 63, 94, 0.22);
+      --accent: #4f46e5;
+      --accent-soft: #eef2ff;
+      --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.09);
+      --radius: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top left, #eef2ff 0%, var(--bg) 42%, #f8fafc 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 56px;
+    }
+
+    .container {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+
+    /* Top Bar */
+    .topbar {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      box-shadow: 0 8px 18px rgba(79, 70, 229, 0.28);
+    }
+
+    .brand h1 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand p {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .auth-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .role-pill {
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .role-pill.tech {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
+    }
+
+    .role-pill.admin {
+      background: var(--accent-soft);
+      border-color: #c7d2fe;
+      color: #3730a3;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 0.86rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.25);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+    }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface-2);
+    }
+
+    /* Summary Strip */
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    .stat-val {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+
+    .stat-val.green { color: var(--working-text); }
+    .stat-val.red { color: var(--down-text); }
+
+    /* Wings */
+    .wing-section {
+      margin-bottom: 28px;
+    }
+
+    .wing-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding: 0 4px;
+    }
+
+    .wing-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .wing-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .lift-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .lift-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 540px) {
+      .lift-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Lift Widget */
+    .lift-card {
+      position: relative;
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      border: 2px solid transparent;
+      transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 168px;
+      user-select: none;
+    }
+
+    .lift-card.can-toggle {
+      cursor: pointer;
+    }
+
+    .lift-card.can-toggle:hover {
+      transform: translateY(-4px);
+    }
+
+    .lift-card.working {
+      background: linear-gradient(165deg, #ffffff 0%, var(--working-bg) 100%);
+      border-color: rgba(16, 185, 129, 0.45);
+      box-shadow: var(--shadow-md), 0 0 0 1px rgba(16, 185, 129, 0.08), 0 12px 24px -6px var(--working-glow);
+    }
+
+    .lift-card.out-of-order {
+      background: linear-gradient(165deg, #ffffff 0%, var(--down-bg) 100%);
+      border-color: rgba(244, 63, 94, 0.48);
+      box-shadow: var(--shadow-md), 0 0 0 1px rgba(244, 63, 94, 0.08), 0 12px 24px -6px var(--down-glow);
+    }
+
+    .lift-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .lift-name {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .tap-hint {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      color: var(--muted);
+    }
+
+    .lift-status {
+      margin: 14px 0 10px;
+      font-size: 1.28rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+    }
+
+    .lift-card.working .lift-status {
+      color: var(--working-text);
+    }
+
+    .lift-card.out-of-order .lift-status {
+      color: var(--down-text);
+    }
+
+    .lift-time {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .lift-time span {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    /* Audit Table */
+    .audit-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: var(--shadow-md);
+      margin-top: 28px;
+    }
+
+    .audit-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .audit-header h2 {
+      font-size: 1.12rem;
+      font-weight: 800;
+    }
+
+    .audit-header p {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      min-width: 720px;
+    }
+
+    th {
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-state {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 800;
+    }
+
+    .badge-state.working {
+      background: var(--working-bg);
+      color: var(--working-text);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .badge-state.out-of-order {
+      background: var(--down-bg);
+      color: var(--down-text);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+    }
+
+    /* Login Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.48);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 24px 50px rgba(15, 23, 42, 0.25);
+      border: 1px solid var(--border);
+    }
+
+    .modal h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .modal p {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .role-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .role-option {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .role-option.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .passcode-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      font-size: 1rem;
+      letter-spacing: 0.18em;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .passcode-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .error-msg {
+      color: var(--down-text);
+      font-size: 0.8rem;
+      font-weight: 700;
+      min-height: 20px;
+      margin-bottom: 10px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #0f172a;
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+      pointer-events: none;
+      z-index: 60;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-badge">LP</div>
+        <div>
+          <h1>Society Lift Status</h1>
+          <p id="modeIndicator">View-Only Mode • Live Sync Ready</p>
+        </div>
+      </div>
+
+      <div class="auth-controls">
+        <span id="rolePill" class="role-pill">Resident (View Only)</span>
+        <button id="loginBtn" class="btn btn-primary" type="button">Login</button>
+        <button id="logoutBtn" class="btn btn-ghost" type="button" style="display: none;">Logout</button>
+      </div>
+    </header>
+
+    <section class="summary-strip">
+      <div class="stat-card">
+        <div class="stat-label">Total Lifts</div>
+        <div class="stat-val" id="totalCount">10</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Working</div>
+        <div class="stat-val green" id="workingCount">10</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Out of Order</div>
+        <div class="stat-val red" id="downCount">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Audit Entries</div>
+        <div class="stat-val" id="auditCount">0</div>
+      </div>
+    </section>
+
+    <main id="wingsContainer"></main>
+
+    <section class="audit-card">
+      <div class="audit-header">
+        <div>
+          <h2>Lift Status Audit Trail</h2>
+          <p>Duration from previous status updates only when a lift status changes.</p>
+        </div>
+        <button id="exportCsvBtn" class="btn btn-ghost" type="button">Export CSV</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Lift</th>
+              <th>New Status</th>
+              <th>Status Changed At</th>
+              <th>Duration From Previous Status</th>
+              <th>Updated By</th>
+            </tr>
+          </thead>
+          <tbody id="auditTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--muted); padding: 24px;">
+                No status changes recorded yet.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h3 id="modalTitle">Role Login</h3>
+      <p>Select your role and enter the passcode. Passcodes are verified using SHA-256 hashes.</p>
+
+      <div class="role-switch">
+        <button type="button" id="selectTechBtn" class="role-option active">Technician</button>
+        <button type="button" id="selectAdminBtn" class="role-option">Admin</button>
+      </div>
+
+      <input
+        id="passcodeInput"
+        class="passcode-input"
+        type="password"
+        inputmode="numeric"
+        autocomplete="off"
+        placeholder="Enter passcode"
+      />
+      <div id="loginError" class="error-msg"></div>
+
+      <div class="modal-actions">
+        <button type="button" id="cancelLoginBtn" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="submitLoginBtn" class="btn btn-primary">Validate & Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Firebase Compat SDKs for easy static hosting -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    // 1. Paste your Firebase Web App config here to enable live multi-user sync & cloud audit log.
+    // If left as placeholders, the app runs locally in the browser so you can preview immediately.
+    const FIREBASE_CONFIG = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const WINGS_CONFIG = [
+      { wing: "Wing A", lifts: ["Lift A", "Lift B", "Lift C", "Lift D"] },
+      { wing: "Wing B", lifts: ["Lift A", "Lift B", "Lift C", "Lift D"] },
+      { wing: "Wing C", lifts: ["Lift A", "Lift B"] }
+    ];
+
+    const DEFAULT_PASSCODES = {
+      technician: "9090",
+      admin: "30062025"
+    };
+
+    const LOCAL_STORAGE_KEY = "society_lift_pulse_state_v1";
+
+    const state = {
+      role: "resident", // "resident" | "technician" | "admin"
+      lifts: {},
+      auditLog: [],
+      authHashes: {
+        technician: { masked: "••••", hash: "" },
+        admin: { masked: "••••••••", hash: "" }
+      },
+      useFirebase: false,
+      db: null
+    };
+
+    let selectedLoginRole = "technician";
+
+    async function sha256Hex(plainText) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(plainText);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    function formatTimestamp(ms) {
+      const d = new Date(ms);
+      return d.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      });
+    }
+
+    function formatDurationHMS(diffMs) {
+      const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    function buildInitialLifts(nowMs = Date.now()) {
+      const map = {};
+      WINGS_CONFIG.forEach(({ wing, lifts }) => {
+        lifts.forEach((liftName) => {
+          const id = `${wing} - ${liftName}`;
+          map[id] = {
+            id,
+            wing,
+            liftName,
+            status: "WORKING",
+            changedAt: nowMs,
+            previousDurationLabel: "Initial state"
+          };
+        });
+      });
+      return map;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.classList.add("show");
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    function canToggleLifts() {
+      return state.role === "technician" || state.role === "admin";
+    }
+
+    function renderAuthUI() {
+      const rolePill = document.getElementById("rolePill");
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const modeIndicator = document.getElementById("modeIndicator");
+
+      rolePill.classList.remove("tech", "admin");
+      if (state.role === "technician") {
+        rolePill.textContent = "Technician (1-Tap Toggle)";
+        rolePill.classList.add("tech");
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+      } else if (state.role === "admin") {
+        rolePill.textContent = "Admin (Full Access)";
+        rolePill.classList.add("admin");
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+      } else {
+        rolePill.textContent = "Resident (View Only)";
+        loginBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
+      }
+
+      const syncLabel = state.useFirebase ? "Firebase Realtime Sync" : "Local Preview Mode";
+      const permLabel = canToggleLifts() ? "Tap any lift to switch status" : "View-only permissions";
+      modeIndicator.textContent = `${syncLabel} • ${permLabel}`;
+    }
+
+    function renderLifts() {
+      const container = document.getElementById("wingsContainer");
+      container.innerHTML = "";
+
+      let workingTotal = 0;
+      let downTotal = 0;
+
+      WINGS_CONFIG.forEach(({ wing, lifts }) => {
+        const section = document.createElement("section");
+        section.className = "wing-section";
+
+        const header = document.createElement("div");
+        header.className = "wing-header";
+        header.innerHTML = `
+          <div class="wing-title">${wing}</div>
+          <div class="wing-meta">${lifts.length} Lifts</div>
+        `;
+
+        const grid = document.createElement("div");
+        grid.className = "lift-grid";
+
+        lifts.forEach((liftName) => {
+          const id = `${wing} - ${liftName}`;
+          const item = state.lifts[id] || {
+            id,
+            wing,
+            liftName,
+            status: "WORKING",
+            changedAt: Date.now()
+          };
+
+          const isWorking = item.status === "WORKING";
+          if (isWorking) workingTotal += 1;
+          else downTotal += 1;
+
+          const card = document.createElement("div");
+          card.className = `lift-card ${isWorking ? "working" : "out-of-order"} ${canToggleLifts() ? "can-toggle" : ""}`;
+          card.innerHTML = `
+            <div class="lift-top">
+              <div class="lift-name">${id}</div>
+              ${canToggleLifts() ? `<span class="tap-hint">1-Tap Toggle</span>` : ""}
+            </div>
+            <div class="lift-status">${isWorking ? "WORKING" : "OUT OF ORDER"}</div>
+            <div class="lift-time">
+              Status changed at<br />
+              <span>${formatTimestamp(item.changedAt)}</span>
+            </div>
+          `;
+
+          if (canToggleLifts()) {
+            card.addEventListener("click", () => handleToggleLift(id));
+          }
+
+          grid.appendChild(card);
+        });
+
+        section.appendChild(header);
+        section.appendChild(grid);
+        container.appendChild(section);
+      });
+
+      document.getElementById("workingCount").textContent = workingTotal;
+      document.getElementById("downCount").textContent = downTotal;
+      document.getElementById("auditCount").textContent = state.auditLog.length;
+    }
+
+    function renderAuditTable() {
+      const tbody = document.getElementById("auditTableBody");
+      if (!state.auditLog.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--muted); padding: 24px;">
+              No status changes recorded yet.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = state.auditLog
+        .map((entry) => {
+          const cls = entry.newStatus === "WORKING" ? "working" : "out-of-order";
+          return `
+            <tr>
+              <td><strong>${entry.liftId}</strong></td>
+              <td><span class="badge-state ${cls}">${entry.newStatus}</span></td>
+              <td>${formatTimestamp(entry.changedAt)}</td>
+              <td class="mono">${entry.durationFormatted} ${entry.durationContext}</td>
+              <td>${entry.updatedBy}</td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    function persistLocal() {
+      localStorage.setItem(
+        LOCAL_STORAGE_KEY,
+        JSON.stringify({
+          lifts: state.lifts,
+          auditLog: state.auditLog,
+          authHashes: state.authHashes
+        })
+      );
+    }
+
+    async function handleToggleLift(liftId) {
+      if (!canToggleLifts()) {
+        showToast("Please log in as Technician or Admin to update status.");
+        return;
+      }
+
+      const current = state.lifts[liftId];
+      if (!current) return;
+
+      const nowMs = Date.now();
+      const previousStatus = current.status;
+      const previousChangedAt = current.changedAt || nowMs;
+      const newStatus = previousStatus === "WORKING" ? "OUT OF ORDER" : "WORKING";
+
+      // Duration reflects how long the lift stayed in its *previous* status, frozen at the moment of change.
+      const elapsedMs = nowMs - previousChangedAt;
+      const durationFormatted = formatDurationHMS(elapsedMs);
+      const durationContext = previousStatus === "WORKING" ? "in operation" : "out of operation";
+
+      const updatedLift = {
+        ...current,
+        status: newStatus,
+        changedAt: nowMs
+      };
+
+      const logEntry = {
+        id: `${nowMs}_${Math.random().toString(36).slice(2, 7)}`,
+        liftId,
+        previousStatus,
+        newStatus,
+        changedAt: nowMs,
+        durationMs: elapsedMs,
+        durationFormatted,
+        durationContext,
+        updatedBy: state.role === "admin" ? "Admin" : "Technician"
+      };
+
+      state.lifts[liftId] = updatedLift;
+      state.auditLog = [logEntry, ...state.auditLog];
+
+      renderLifts();
+      renderAuditTable();
+      persistLocal();
+
+      if (state.useFirebase && state.db) {
+        const safeKey = liftId.replace(/[.#$/[\]]/g, "_");
+        await state.db.ref(`lifts/${safeKey}`).set(updatedLift);
+        await state.db.ref(`auditLog/${logEntry.id}`).set(logEntry);
+      }
+
+      showToast(`${liftId} → ${newStatus}`);
+    }
+
+    async function ensureAuthHashes() {
+      const techHash = await sha256Hex(DEFAULT_PASSCODES.technician);
+      const adminHash = await sha256Hex(DEFAULT_PASSCODES.admin);
+
+      if (!state.authHashes.technician.hash) {
+        state.authHashes.technician = { masked: "••••", hash: techHash };
+      }
+      if (!state.authHashes.admin.hash) {
+        state.authHashes.admin = { masked: "••••••••", hash: adminHash };
+      }
+
+      if (state.useFirebase && state.db) {
+        const snap = await state.db.ref("config/auth").once("value");
+        const val = snap.val();
+        if (!val || !val.technician?.hash || !val.admin?.hash) {
+          await state.db.ref("config/auth").set({
+            technician: { masked: "••••", hash: techHash },
+            admin: { masked: "••••••••", hash: adminHash }
+          });
+        } else {
+          state.authHashes = val;
+        }
+      }
+    }
+
+    function openLoginModal() {
+      document.getElementById("passcodeInput").value = "";
+      document.getElementById("loginError").textContent = "";
+      setSelectedRole("technician");
+      document.getElementById("loginModal").classList.add("open");
+      setTimeout(() => document.getElementById("passcodeInput").focus(), 50);
+    }
+
+    function closeLoginModal() {
+      document.getElementById("loginModal").classList.remove("open");
+    }
+
+    function setSelectedRole(role) {
+      selectedLoginRole = role;
+      document.getElementById("selectTechBtn").classList.toggle("active", role === "technician");
+      document.getElementById("selectAdminBtn").classList.toggle("active", role === "admin");
+      document.getElementById("loginError").textContent = "";
+    }
+
+    async function validateLogin() {
+      const entered = document.getElementById("passcodeInput").value.trim();
+      const errEl = document.getElementById("loginError");
+      if (!entered) {
+        errEl.textContent = "Please enter a passcode.";
+        return;
+      }
+
+      await ensureAuthHashes();
+      const enteredHash = await sha256Hex(entered);
+      const expectedHash = state.authHashes[selectedLoginRole]?.hash;
+
+      if (enteredHash === expectedHash) {
+        state.role = selectedLoginRole;
+        closeLoginModal();
+        renderAuthUI();
+        renderLifts();
+        showToast(`Logged in as ${selectedLoginRole.toUpperCase()}`);
+      } else {
+        errEl.textContent = "Invalid passcode for selected role.";
+      }
+    }
+
+    function exportCsv() {
+      if (!state.auditLog.length) {
+        showToast("No audit entries to export.");
+        return;
+      }
+      const headers = ["Lift", "New Status", "Status Changed At", "Duration From Previous Status", "Updated By"];
+      const rows = state.auditLog.map((r) => [
+        `"${r.liftId}"`,
+        `"${r.newStatus}"`,
+        `"${formatTimestamp(r.changedAt)}"`,
+        `"${r.durationFormatted} ${r.durationContext}"`,
+        `"${r.updatedBy}"`
+      ]);
+      const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lift-audit-trail-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function init() {
+      state.lifts = buildInitialLifts();
+
+      const savedRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedRaw) {
+        try {
+          const parsed = JSON.parse(savedRaw);
+          if (parsed.lifts) state.lifts = { ...state.lifts, ...parsed.lifts };
+          if (Array.isArray(parsed.auditLog)) state.auditLog = parsed.auditLog;
+          if (parsed.authHashes) state.authHashes = parsed.authHashes;
+        } catch (_) {}
+      }
+
+      const hasRealFirebase =
+        FIREBASE_CONFIG.apiKey &&
+        !FIREBASE_CONFIG.apiKey.startsWith("YOUR_") &&
+        FIREBASE_CONFIG.databaseURL &&
+        !FIREBASE_CONFIG.databaseURL.includes("YOUR_PROJECT");
+
+      if (hasRealFirebase && window.firebase) {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        state.db = firebase.database();
+        state.useFirebase = true;
+
+        await ensureAuthHashes();
+
+        const liftsSnap = await state.db.ref("lifts").once("value");
+        if (!liftsSnap.exists()) {
+          await state.db.ref("lifts").set(state.lifts);
+        }
+
+        state.db.ref("lifts").on("value", (snap) => {
+          const val = snap.val();
+          if (val) {
+            const nextMap = buildInitialLifts();
+            Object.values(val).forEach((liftObj) => {
+              if (liftObj && liftObj.id) nextMap[liftObj.id] = liftObj;
+            });
+            state.lifts = nextMap;
+            renderLifts();
+          }
+        });
+
+        state.db.ref("auditLog").on("value", (snap) => {
+          const val = snap.val();
+          if (val) {
+            state.auditLog = Object.values(val).sort((a, b) => b.changedAt - a.changedAt);
+            renderLifts();
+            renderAuditTable();
+          }
+        });
+      } else {
+        await ensureAuthHashes();
+      }
+
+      document.getElementById("loginBtn").addEventListener("click", openLoginModal);
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        state.role = "resident";
+        renderAuthUI();
+        renderLifts();
+        showToast("Switched to View-Only mode.");
+      });
+      document.getElementById("cancelLoginBtn").addEventListener("click", closeLoginModal);
+      document.getElementById("selectTechBtn").addEventListener("click", () => setSelectedRole("technician"));
+      document.getElementById("selectAdminBtn").addEventListener("click", () => setSelectedRole("admin"));
+      document.getElementById("submitLoginBtn").addEventListener("click", validateLogin);
+      document.getElementById("passcodeInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") validateLogin();
+      });
+      document.getElementById("exportCsvBtn").addEventListener("click", exportCsv);
+
+      renderAuthUI();
+      renderLifts();
+      renderAuditTable();
+    }
+
+    init();
+  </script>
+</body>
+</html>
