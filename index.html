@@ -235,7 +235,7 @@
 
       <div class="auth-controls">
         <span id="rolePill" class="role-pill">Resident (View Only)</span>
-        <button id="loginBtn" class="btn btn-primary" type="button" onclick="window.__openLiftLogin && window.__openLiftLogin()">Login</button>
+        <button id="loginBtn" class="btn btn-primary" type="button" onclick="if(window.__openLiftLogin){window.__openLiftLogin();}else{var m=document.getElementById('loginModal');if(m)m.classList.add('open');}">Login</button>
         <button id="logoutBtn" class="btn btn-ghost" type="button" style="display: none;">Logout</button>
       </div>
     </header>
