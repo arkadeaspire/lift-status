@@ -288,13 +288,13 @@
       Technician: {
         username: "Technician",
         salt: "AA_TECH_SALT_2026",
-        hash: "935e8114dc435d2d80760c3fb70955a3743bc98f32744a2f84a836459d2925fc",
+        hash: "4b92a573074d52d42c24efca6e0c98fe5e9762dd459c7d8debf404721ee38bbc",
         masked: "••••"
       },
       Admin: {
         username: "Admin",
         salt: "AA_ADMIN_SALT_2026",
-        hash: "596f3bf03d145c3c6ecbe79eb64952fb9a8a63d61e2629873d0b1a65b293f223",
+        hash: "48861fe508277e572aafa89e2d21ecfdcfe228e7723c2436e7aa805883386cf5",
         masked: "••••••"
       }
     };
@@ -389,11 +389,18 @@
 
     // Initialize default lifts and encrypted credentials in Firebase RTDB if not present
     async function ensureInitialData() {
-      // 1. Seed encrypted credentials in DB if missing
+      // 1. Ensure encrypted credentials in DB match expected hashes
       const credRef = ref(db, "auth_credentials");
       const credSnap = await get(credRef);
       if (!credSnap.exists()) {
         await set(credRef, INITIAL_CREDENTIAL_SEED);
+      } else {
+        const existing = credSnap.val();
+        for (const role of ["Technician", "Admin"]) {
+          if (!existing[role] || existing[role].hash !== INITIAL_CREDENTIAL_SEED[role].hash) {
+            await set(ref(db, `auth_credentials/${role}`), INITIAL_CREDENTIAL_SEED[role]);
+          }
+        }
       }
 
       // 2. Seed initial 10 lifts in DB if missing
