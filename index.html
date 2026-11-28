@@ -272,11 +272,14 @@
     // Cryptographic SHA-256 Hashing with Salt (Web Crypto API)
     // Passwords are NEVER hardcoded in plaintext; stored only as salted SHA-256 hashes in Firebase RTDB (/auth_credentials)
     async function sha256Hex(text) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(text);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      if (window.crypto && window.crypto.subtle) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+        const hashBuffer = await window.crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      }
+      throw new Error("Secure crypto context (HTTPS) required");
     }
 
     function generateMask(len) {
@@ -310,14 +313,22 @@
 
     // Verify a password against the encrypted record stored in Firebase RTDB
     async function verifyCredentialsAgainstDB(role, plainPassword) {
-      const credSnap = await get(ref(db, `auth_credentials/${role}`));
-      if (!credSnap.exists()) return null;
-      const cred = credSnap.val();
-      const computedHash = await sha256Hex(`${cred.salt}:${plainPassword}`);
-      if (computedHash === cred.hash) {
-        return computedHash;
+      let credSnap = await get(ref(db, `auth_credentials/${role}`));
+      if (!credSnap.exists() && INITIAL_CREDENTIAL_SEED[role]) {
+        await set(ref(db, `auth_credentials/${role}`), INITIAL_CREDENTIAL_SEED[role]);
+        credSnap = await get(ref(db, `auth_credentials/${role}`));
       }
-      return null;
+      if (!credSnap.exists()) {
+        return { ok: false, reason: "Credential record missing in DB." };
+      }
+      const cred = credSnap.val();
+      const salt = cred.salt || INITIAL_CREDENTIAL_SEED[role]?.salt || "";
+      const expectedHash = cred.hash || INITIAL_CREDENTIAL_SEED[role]?.hash || "";
+      const computedHash = await sha256Hex(`${salt}:${plainPassword}`);
+      if (computedHash === expectedHash) {
+        return { ok: true, hash: computedHash };
+      }
+      return { ok: false, reason: `Invalid password for ${role}.` };
     }
 
     // Re-authenticate active session against Firebase RTDB at appropriate events (boot, toggle, delete)
@@ -764,21 +775,22 @@
 
     window.submitPasscode = async function(e) {
       e.preventDefault();
-      const password = document.getElementById("passcode-input").value.trim();
+      const password = document.getElementById("passcode-input").value;
       const error = document.getElementById("login-error");
       const submitBtn = document.getElementById("login-submit-btn");
 
+      error.classList.add("hidden");
       submitBtn.disabled = true;
       submitBtn.textContent = "Verifying...";
 
       try {
-        const verifiedHash = await verifyCredentialsAgainstDB(selectedLoginRole, password);
-        if (verifiedHash) {
+        const result = await verifyCredentialsAgainstDB(selectedLoginRole, password);
+        if (result && result.ok) {
           currentRole = selectedLoginRole;
           storedSessionRole = selectedLoginRole;
-          sessionTokenHash = verifiedHash;
+          sessionTokenHash = result.hash;
           sessionStorage.setItem("aa_session_role", currentRole);
-          sessionStorage.setItem("aa_session_hash", verifiedHash);
+          sessionStorage.setItem("aa_session_hash", result.hash);
 
           // Update masked indicator in DB on successful login
           await set(ref(db, `auth_credentials/${currentRole}/masked`), generateMask(password.length));
@@ -787,12 +799,14 @@
           applyRoleUI();
           showToast(`Logged in as ${currentRole}`, true);
         } else {
+          error.textContent = (result && result.reason) || `Invalid password for ${selectedLoginRole}.`;
           error.classList.remove("hidden");
           document.getElementById("passcode-input").value = "";
+          document.getElementById("passcode-input").focus();
         }
       } catch (err) {
         console.error("Auth check failed:", err);
-        error.textContent = "Database verification failed. Check connection.";
+        error.textContent = err.message || "Database verification failed. Check Firebase rules or connection.";
         error.classList.remove("hidden");
       } finally {
         submitBtn.disabled = false;
