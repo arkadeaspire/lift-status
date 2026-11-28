@@ -2,59 +2,646 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Verification Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#090d16" />
+  <title>Lift Status Monitor</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f6fb;
-      color: #0f172a;
-      padding: 24px;
+      background-color: #090d16;
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
-    .box {
-      max-width: 600px;
-      margin: 0 auto;
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      border-radius: 12px;
-      padding: 20px;
+
+    /* Widget Glass & State Styles */
+    .widget-card {
+      transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
-    button {
-      padding: 10px 16px;
-      font-size: 15px;
-      font-weight: bold;
-      background: #2563eb;
-      color: #ffffff;
-      border: none;
-      border-radius: 8px;
+
+    .widget-working {
+      background: linear-gradient(145deg, rgba(16, 185, 129, 0.16) 0%, rgba(6, 78, 59, 0.25) 100%);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      box-shadow: 0 4px 16px -4px rgba(16, 185, 129, 0.15);
+    }
+
+    .widget-out {
+      background: linear-gradient(145deg, rgba(244, 63, 94, 0.22) 0%, rgba(136, 19, 55, 0.32) 100%);
+      border: 1px solid rgba(251, 113, 133, 0.5);
+      box-shadow: 0 4px 18px -4px rgba(244, 63, 94, 0.25);
+    }
+
+    .interactive-widget {
       cursor: pointer;
-      margin-top: 12px;
     }
-    #result {
-      margin-top: 14px;
-      padding: 12px;
-      background: #ecfdf5;
-      border: 1px solid #10b981;
-      border-radius: 8px;
-      font-weight: bold;
-      display: none;
+    .interactive-widget:active {
+      transform: scale(0.96);
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+    .animate-pulse-dot {
+      animation: pulse-dot 1.8s infinite ease-in-out;
+    }
+
+    /* Custom Scrollbar for Audit Table */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
     }
   </style>
 </head>
-<body>
-  <div class="box">
-    <h2>GitHub Pages Verification</h2>
-    <p>If you see this box on <strong>arkadeaspire.github.io/lift-status/</strong>, HTML and CSS are deploying properly.</p>
-    <button id="verifyBtn" type="button">Test Login Click</button>
-    <div id="result"></div>
+<body class="min-h-screen flex flex-col justify-between selection:bg-emerald-500/30">
+
+  <!-- Main Wrapper -->
+  <div class="w-full max-w-5xl mx-auto px-3 sm:px-6 pt-2.5 pb-4 sm:py-6 flex-1 flex flex-col">
+
+    <!-- Compact Top Header -->
+    <header class="flex items-center justify-between mb-2.5 sm:mb-6 pb-2 border-b border-slate-800/80">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center justify-center text-emerald-400 shadow-inner">
+          <i data-lucide="arrow-up-down" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-sm sm:text-xl font-bold tracking-tight text-white leading-none">
+            Lift Status
+          </h1>
+          <div class="flex items-center gap-1.5 mt-0.5 sm:mt-1">
+            <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <span id="connection-text" class="text-[10px] sm:text-xs text-slate-400 font-medium">Connecting...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Role Badge & Auth Button -->
+      <div class="flex items-center gap-2">
+        <span id="role-badge" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+          Resident
+        </span>
+        <button id="auth-btn" onclick="handleAuthButtonClick()"
+          class="flex items-center gap-1.5 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition shadow-sm">
+          <i id="auth-icon" data-lucide="lock" class="w-3.5 h-3.5 text-slate-400"></i>
+          <span id="auth-btn-text">Staff Login</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Technician/Admin Instruction Banner (Hidden in Resident View) -->
+    <div id="staff-banner" class="hidden mb-2.5 sm:mb-4 px-3 py-1.5 rounded-lg bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-between text-[11px] sm:text-xs text-indigo-200">
+      <div class="flex items-center gap-1.5">
+        <i data-lucide="touchpad" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+        <span>Tap any lift widget to toggle between <strong>WORKING</strong> and <strong>OUT OF ORDER</strong>.</span>
+      </div>
+      <a href="#audit-section" class="underline font-semibold text-indigo-300 hover:text-white ml-2 shrink-0">View Logs ↓</a>
+    </div>
+
+    <!-- Widgets Container (Designed so all 10 fit on a single mobile viewport) -->
+    <main id="wings-container" class="space-y-2.5 sm:space-y-6 my-auto">
+      <!-- Wing Sections injected dynamically by JS -->
+    </main>
+
+    <!-- Audit Trail Section (Visible ONLY to Technician & Admin) -->
+    <section id="audit-section" class="hidden mt-8 pt-6 border-t border-slate-800">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="history" class="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400"></i>
+            Status Change Audit Trail
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Complete chronological history of all lift status transitions.</p>
+        </div>
+
+        <!-- Admin-Only CSV Export Button -->
+        <button id="export-csv-btn" onclick="exportAuditCSV()"
+          class="hidden items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50 transition">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          Download CSV Report
+        </button>
+      </div>
+
+      <!-- Responsive Audit Table -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+        <div class="overflow-x-auto max-h-96">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-800/80 text-[11px] sm:text-xs uppercase tracking-wider text-slate-400 border-b border-slate-700/80">
+                <th class="py-2.5 px-3 sm:px-4 font-semibold">Date & Time</th>
+                <th class="py-2.5 px-3 sm:px-4 font-semibold">Wing & Lift</th>
+                <th class="py-2.5 px-3 sm:px-4 font-semibold">Previous Status</th>
+                <th class="py-2.5 px-3 sm:px-4 font-semibold">New Status</th>
+                <th class="py-2.5 px-3 sm:px-4 font-semibold">Prior Duration</th>
+                <th class="py-2.5 px-3 sm:px-4 font-semibold">Updated By</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body" class="divide-y divide-slate-800/70 text-xs sm:text-sm">
+              <tr>
+                <td colspan="6" class="py-6 text-center text-slate-500">Loading audit logs...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </div>
 
-  <script>
-    document.getElementById("verifyBtn").addEventListener("click", function () {
-      var el = document.getElementById("result");
-      el.style.display = "block";
-      el.textContent = "JavaScript click worked at " + new Date().toLocaleTimeString();
-    });
+  <!-- Passcode Login Modal -->
+  <div id="login-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-xs p-5 shadow-2xl transform transition-all">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <i data-lucide="key-round" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">Staff Access</h3>
+        </div>
+        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400 mb-4">Enter Technician or Admin passcode to manage lift statuses and view audit trails.</p>
+
+      <form onsubmit="submitPasscode(event)" class="space-y-3">
+        <div>
+          <input id="passcode-input" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="Enter Passcode" required
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-center text-lg font-mono tracking-widest text-white focus:outline-none focus:border-indigo-500" />
+          <p id="login-error" class="hidden text-xs text-rose-400 mt-1.5 text-center font-medium">Invalid passcode. Please try again.</p>
+        </div>
+        <button type="submit"
+          class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-950/50">
+          Unlock View
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmation Toast -->
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden items-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 text-xs sm:text-sm font-medium text-white shadow-2xl">
+    <span id="toast-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+    <span id="toast-msg">Status updated</span>
+  </div>
+
+  <!-- Firebase App & Realtime Database SDK (Modular v10) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, set, get, push, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    // Your Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBMdhQmDKnpMV8H8OTahGKDsrDeuxYW-i4",
+      authDomain: "society-lift-status.firebaseapp.com",
+      databaseURL: "https://society-lift-status-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "society-lift-status",
+      storageBucket: "society-lift-status.firebasestorage.app",
+      messagingSenderId: "279846088741",
+      appId: "1:279846088741:web:7a09d2f3baf81c7f834fcc"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Lift Configuration
+    const LIFT_CONFIG = [
+      { wing: "Wing A", lifts: ["Lift A", "Lift B", "Lift C", "Lift D"] },
+      { wing: "Wing B", lifts: ["Lift A", "Lift B", "Lift C", "Lift D"] },
+      { wing: "Wing C", lifts: ["Lift A", "Lift B"] }
+    ];
+
+    // Passcodes
+    const PASSCODES = {
+      "9090": "Technician",
+      "300625": "Admin"
+    };
+
+    // Application State
+    let currentRole = sessionStorage.getItem("lift_role") || "Resident";
+    let liftsState = {};
+    let auditLogs = [];
+    let isUpdating = false;
+
+    // Format Date & Time cleanly (e.g., "28 Nov 26, 07:16 PM")
+    function formatDateTime(timestamp) {
+      if (!timestamp) return "Just now";
+      const d = new Date(timestamp);
+      const day = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
+      const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+      return `${day}, ${time}`;
+    }
+
+    // Calculate human-readable duration between two timestamps
+    function formatDuration(ms) {
+      if (!ms || ms < 0) return "—";
+      const totalMins = Math.floor(ms / 60000);
+      if (totalMins < 1) return "< 1 min";
+      const days = Math.floor(totalMins / 1440);
+      const hours = Math.floor((totalMins % 1440) / 60);
+      const mins = totalMins % 60;
+      const parts = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hours > 0) parts.push(`${hours}h`);
+      if (mins > 0 && days === 0) parts.push(`${mins}m`);
+      return parts.join(" ");
+    }
+
+    // Generate clean database key (e.g., "Wing_A__Lift_A")
+    function getLiftKey(wing, lift) {
+      return `${wing.replace(/\s+/g, "_")}__${lift.replace(/\s+/g, "_")}`;
+    }
+
+    // Initialize default lifts in Firebase if empty
+    async function ensureInitialData() {
+      const liftsRef = ref(db, "lifts");
+      const snapshot = await get(liftsRef);
+      if (!snapshot.exists()) {
+        const now = Date.now();
+        const initialPayload = {};
+        LIFT_CONFIG.forEach(group => {
+          group.lifts.forEach(liftName => {
+            const key = getLiftKey(group.wing, liftName);
+            initialPayload[key] = {
+              wing: group.wing,
+              lift: liftName,
+              status: "WORKING",
+              previousStatus: "INITIALIZED",
+              updatedAt: now
+            };
+          });
+        });
+        await set(liftsRef, initialPayload);
+      }
+    }
+
+    // Render the 10 Lift Widgets
+    function renderWidgets() {
+      const container = document.getElementById("wings-container");
+      const isEditable = currentRole === "Technician" || currentRole === "Admin";
+
+      container.innerHTML = LIFT_CONFIG.map(group => {
+        const cardsHtml = group.lifts.map(liftName => {
+          const key = getLiftKey(group.wing, liftName);
+          const data = liftsState[key] || {
+            wing: group.wing,
+            lift: liftName,
+            status: "WORKING",
+            updatedAt: Date.now()
+          };
+
+          const isWorking = data.status === "WORKING";
+          const stateClass = isWorking ? "widget-working" : "widget-out";
+          const dotColor = isWorking ? "bg-emerald-400" : "bg-rose-400 animate-pulse-dot";
+          const badgeText = isWorking ? "text-emerald-300" : "text-rose-200";
+          const interactiveClass = isEditable ? "interactive-widget hover:brightness-110" : "";
+          const clickAttr = isEditable ? `onclick="toggleLiftStatus('${key}')"` : "";
+
+          return `
+            <div ${clickAttr}
+              class="widget-card ${stateClass} ${interactiveClass} rounded-xl p-2 sm:p-3.5 flex flex-col justify-between select-none relative overflow-hidden">
+              
+              <!-- Row 1: Wing & Lift Name -->
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-[11px] sm:text-sm font-bold text-white tracking-tight truncate">
+                  ${data.wing} <span class="text-slate-400 font-normal">•</span> ${data.lift}
+                </span>
+                <span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${dotColor} shrink-0"></span>
+              </div>
+
+              <!-- Row 2: Status -->
+              <div class="my-1 sm:my-2">
+                <span class="text-xs sm:text-base font-extrabold tracking-wide uppercase ${badgeText}">
+                  ${data.status}
+                </span>
+              </div>
+
+              <!-- Row 3: Last Update Date & Time -->
+              <div class="text-[9.5px] sm:text-xs font-mono text-slate-300/90 truncate">
+                ${formatDateTime(data.updatedAt)}
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        return `
+          <section>
+            <div class="flex items-center gap-2 mb-1 sm:mb-2">
+              <h2 class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400">
+                ${group.wing}
+              </h2>
+              <div class="h-px bg-slate-800/90 flex-1"></div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3.5">
+              ${cardsHtml}
+            </div>
+          </section>
+        `;
+      }).join("");
+    }
+
+    // Toggle Lift Status (Technician & Admin)
+    window.toggleLiftStatus = async function(key) {
+      if (currentRole !== "Technician" && currentRole !== "Admin") return;
+      if (isUpdating) return;
+
+      const currentLift = liftsState[key];
+      if (!currentLift) return;
+
+      isUpdating = true;
+      const previousStatus = currentLift.status;
+      const newStatus = previousStatus === "WORKING" ? "OUT OF ORDER" : "WORKING";
+      const now = Date.now();
+      const durationMs = currentLift.updatedAt ? (now - currentLift.updatedAt) : 0;
+
+      try {
+        // 1. Update Lift Node
+        await set(ref(db, `lifts/${key}`), {
+          wing: currentLift.wing,
+          lift: currentLift.lift,
+          status: newStatus,
+          previousStatus: previousStatus,
+          updatedAt: now
+        });
+
+        // 2. Append to Audit Trail Node
+        await push(ref(db, "audit_logs"), {
+          wing: currentLift.wing,
+          lift: currentLift.lift,
+          previousStatus: previousStatus,
+          newStatus: newStatus,
+          updatedAt: now,
+          formattedTime: formatDateTime(now),
+          priorDuration: formatDuration(durationMs),
+          changedBy: currentRole
+        });
+
+        showToast(`${currentLift.wing} ${currentLift.lift} → ${newStatus}`, newStatus === "WORKING");
+      } catch (err) {
+        console.error("Firebase update failed:", err);
+        alert("Failed to update status. Please check your internet connection or Firebase rules.");
+      } finally {
+        isUpdating = false;
+      }
+    };
+
+    // Render Audit Logs Table
+    function renderAuditLogs() {
+      const tbody = document.getElementById("audit-table-body");
+      if (auditLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-500">No status changes recorded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = auditLogs.map(log => {
+        const prevClass = log.previousStatus === "WORKING" ? "text-emerald-400" : "text-rose-400";
+        const newClass = log.newStatus === "WORKING"
+          ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+          : "bg-rose-500/15 text-rose-300 border-rose-500/30";
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-2.5 px-3 sm:px-4 font-mono text-[11px] sm:text-xs text-slate-300 whitespace-nowrap">
+              ${log.formattedTime || formatDateTime(log.updatedAt)}
+            </td>
+            <td class="py-2.5 px-3 sm:px-4 font-semibold text-white whitespace-nowrap">
+              ${log.wing} - ${log.lift}
+            </td>
+            <td class="py-2.5 px-3 sm:px-4 text-xs font-medium ${prevClass} whitespace-nowrap">
+              ${log.previousStatus}
+            </td>
+            <td class="py-2.5 px-3 sm:px-4 whitespace-nowrap">
+              <span class="px-2 py-0.5 rounded text-[10px] sm:text-xs font-bold border ${newClass}">
+                ${log.newStatus}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 sm:px-4 font-mono text-xs text-slate-400 whitespace-nowrap">
+              ${log.priorDuration || "—"}
+            </td>
+            <td class="py-2.5 px-3 sm:px-4 text-xs text-slate-300 whitespace-nowrap">
+              ${log.changedBy || "Staff"}
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // Export Audit Trail to CSV (Admin Only)
+    window.exportAuditCSV = function() {
+      if (currentRole !== "Admin") return;
+      if (auditLogs.length === 0) {
+        showToast("No audit logs available to export", false);
+        return;
+      }
+
+      const headers = ["Date & Time", "Wing", "Lift Name", "Previous Status", "New Status", "Prior State Duration", "Updated By"];
+      const rows = auditLogs.map(log => [
+        `"${log.formattedTime || formatDateTime(log.updatedAt)}"`,
+        `"${log.wing}"`,
+        `"${log.lift}"`,
+        `"${log.previousStatus}"`,
+        `"${log.newStatus}"`,
+        `"${log.priorDuration || ""}"`,
+        `"${log.changedBy || "Staff"}"`
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Lift_Audit_Trail_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast("Audit Trail CSV downloaded", true);
+    };
+
+    // UI Role Synchronization
+    function applyRoleUI() {
+      const badge = document.getElementById("role-badge");
+      const authBtnText = document.getElementById("auth-btn-text");
+      const authIcon = document.getElementById("auth-icon");
+      const staffBanner = document.getElementById("staff-banner");
+      const auditSection = document.getElementById("audit-section");
+      const exportBtn = document.getElementById("export-csv-btn");
+
+      badge.textContent = currentRole;
+
+      if (currentRole === "Resident") {
+        badge.className = "px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700";
+        authBtnText.textContent = "Staff Login";
+        authIcon.setAttribute("data-lucide", "lock");
+        staffBanner.classList.add("hidden");
+        auditSection.classList.add("hidden");
+        exportBtn.classList.add("hidden");
+        exportBtn.classList.remove("flex");
+      } else if (currentRole === "Technician") {
+        badge.className = "px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40";
+        authBtnText.textContent = "Logout";
+        authIcon.setAttribute("data-lucide", "log-out");
+        staffBanner.classList.remove("hidden");
+        auditSection.classList.remove("hidden");
+        exportBtn.classList.add("hidden");
+        exportBtn.classList.remove("flex");
+      } else if (currentRole === "Admin") {
+        badge.className = "px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/40";
+        authBtnText.textContent = "Logout";
+        authIcon.setAttribute("data-lucide", "log-out");
+        staffBanner.classList.remove("hidden");
+        auditSection.classList.remove("hidden");
+        exportBtn.classList.remove("hidden");
+        exportBtn.classList.add("flex");
+      }
+
+      lucide.createIcons();
+      renderWidgets();
+    }
+
+    // Auth Modal Controls
+    window.handleAuthButtonClick = function() {
+      if (currentRole !== "Resident") {
+        currentRole = "Resident";
+        sessionStorage.removeItem("lift_role");
+        applyRoleUI();
+        showToast("Logged out to Resident View", true);
+      } else {
+        const modal = document.getElementById("login-modal");
+        const input = document.getElementById("passcode-input");
+        const error = document.getElementById("login-error");
+        error.classList.add("hidden");
+        input.value = "";
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        setTimeout(() => input.focus(), 100);
+      }
+    };
+
+    window.closeLoginModal = function() {
+      const modal = document.getElementById("login-modal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    };
+
+    window.submitPasscode = function(e) {
+      e.preventDefault();
+      const code = document.getElementById("passcode-input").value.trim();
+      const error = document.getElementById("login-error");
+
+      if (PASSCODES[code]) {
+        currentRole = PASSCODES[code];
+        sessionStorage.setItem("lift_role", currentRole);
+        closeLoginModal();
+        applyRoleUI();
+        showToast(`Unlocked ${currentRole} View`, true);
+      } else {
+        error.classList.remove("hidden");
+        document.getElementById("passcode-input").value = "";
+      }
+    };
+
+    // Toast Helper
+    let toastTimer;
+    function showToast(message, isSuccess = true) {
+      const toast = document.getElementById("toast");
+      const msg = document.getElementById("toast-msg");
+      const dot = document.getElementById("toast-dot");
+
+      msg.textContent = message;
+      dot.className = `w-2 h-2 rounded-full ${isSuccess ? "bg-emerald-400" : "bg-rose-400"}`;
+
+      toast.classList.remove("hidden");
+      toast.classList.add("flex");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add("hidden");
+        toast.classList.remove("flex");
+      }, 2600);
+    }
+
+    // Boot Sequence
+    async function init() {
+      lucide.createIcons();
+      applyRoleUI();
+
+      try {
+        await ensureInitialData();
+      } catch (e) {
+        console.warn("Initial check warning:", e);
+      }
+
+      // Real-time Listener for Lifts
+      onValue(ref(db, "lifts"), (snapshot) => {
+        const connDot = document.getElementById("connection-dot");
+        const connText = document.getElementById("connection-text");
+        connDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400";
+        connText.textContent = "Live Sync Active";
+
+        if (snapshot.exists()) {
+          liftsState = snapshot.val();
+          renderWidgets();
+        }
+      }, (error) => {
+        const connDot = document.getElementById("connection-dot");
+        const connText = document.getElementById("connection-text");
+        connDot.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
+        connText.textContent = "Database Offline";
+        console.error(error);
+      });
+
+      // Real-time Listener for Audit Trail (Last 500 records, newest first)
+      const auditQuery = query(ref(db, "audit_logs"), limitToLast(500));
+      onValue(auditQuery, (snapshot) => {
+        if (snapshot.exists()) {
+          const raw = snapshot.val();
+          auditLogs = Object.keys(raw)
+            .map(id => ({ id, ...raw[id] }))
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        } else {
+          auditLogs = [];
+        }
+        renderAuditLogs();
+      });
+    }
+
+    init();
   </script>
 </body>
 </html>
